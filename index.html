@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FlowVoice 输入法 MVP</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">语音输入法产品原型</p>
+        <h1>FlowVoice</h1>
+        <p class="hero-copy">
+          面向高频中文文本输入场景的语音输入法，优先兼顾准确度、响应速度、易用性与使用成本。
+        </p>
+      </div>
+      <div class="hero-card">
+        <div class="hero-metric">
+          <span>后端架构</span>
+          <strong>Go HTTP 服务</strong>
+        </div>
+        <div class="hero-metric">
+          <span>输入路径</span>
+          <strong>语音直达文本</strong>
+        </div>
+        <div class="hero-metric">
+          <span>交互策略</span>
+          <strong>一键开始</strong>
+        </div>
+      </div>
+    </header>
+
+    <main class="layout">
+      <aside class="panel controls-panel">
+        <section class="panel-section">
+          <div class="section-head">
+            <h2>控制台</h2>
+            <span id="statusBadge" class="status-badge idle">待机</span>
+          </div>
+          <div class="button-row">
+            <button id="toggleButton" class="primary-button">开始语音输入</button>
+            <button id="simulateButton" class="secondary-button">模拟输入</button>
+          </div>
+          <div class="button-row compact">
+            <button id="undoButton" class="ghost-button">撤销上一段</button>
+            <button id="clearButton" class="ghost-button">清空全文</button>
+          </div>
+          <p id="statusText" class="helper-text">
+            推荐先允许麦克风权限，再开始识别。
+          </p>
+        </section>
+
+        <section class="panel-section">
+          <h2>产品策略</h2>
+          <label class="field">
+            <span>模式</span>
+            <select id="modeSelect">
+              <option value="speed">极速模式</option>
+              <option value="balanced" selected>平衡模式</option>
+              <option value="review">审校模式</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>语言</span>
+            <select id="languageSelect">
+              <option value="zh-CN" selected>中文普通话</option>
+              <option value="en-US">English</option>
+              <option value="ja-JP">日本语</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>插入位置</span>
+            <select id="insertionSelect">
+              <option value="cursor" selected>插入到光标处</option>
+              <option value="append">始终追加到末尾</option>
+            </select>
+          </label>
+          <label class="toggle">
+            <input id="interimToggle" type="checkbox" checked>
+            <span>显示实时草稿</span>
+          </label>
+          <label class="toggle">
+            <input id="commandToggle" type="checkbox" checked>
+            <span>启用语音命令</span>
+          </label>
+        </section>
+
+        <section class="panel-section">
+          <div class="section-head">
+            <h2>热词替换</h2>
+            <button id="addHotwordButton" class="text-button">新增</button>
+          </div>
+          <div id="hotwordList" class="hotword-list"></div>
+          <p class="helper-text">用口语说法映射正式文本，提升专有词准确率。</p>
+        </section>
+
+        <section class="panel-section">
+          <h2>语音命令</h2>
+          <div class="command-grid">
+            <div><code>换行</code><span>插入新行</span></div>
+            <div><code>删除上一段</code><span>撤销最近提交</span></div>
+            <div><code>句号</code><span>插入。</span></div>
+            <div><code>逗号</code><span>插入，</span></div>
+          </div>
+        </section>
+      </aside>
+
+      <section class="panel editor-panel">
+        <section class="panel-section editor-section">
+          <div class="section-head">
+            <h2>文本编辑区</h2>
+            <div class="button-row compact">
+              <button id="sendButton" class="primary-button">发送到当前应用</button>
+              <button id="copyButton" class="ghost-button">复制文本</button>
+              <button id="downloadButton" class="ghost-button">导出 .txt</button>
+            </div>
+          </div>
+          <textarea id="editor" class="editor" spellcheck="false" placeholder="语音识别结果会进入这里，你也可以手动编辑。"></textarea>
+          <div class="live-region">
+            <span>实时草稿</span>
+            <div id="interimBox" class="interim-box">等待识别结果...</div>
+          </div>
+        </section>
+
+        <section class="panel-section queue-section">
+          <div class="section-head">
+            <h2>待确认结果</h2>
+            <span id="queueHint" class="queue-hint">审校模式下会先进入这里</span>
+          </div>
+          <div id="reviewQueue" class="review-queue empty">
+            <p>当前没有待确认片段。</p>
+          </div>
+        </section>
+      </section>
+
+      <aside class="panel insight-panel">
+        <section class="panel-section">
+          <div class="section-head">
+            <h2>桌面集成</h2>
+            <span id="desktopBadge" class="status-badge idle">未连接</span>
+          </div>
+          <div class="button-row compact">
+            <button id="desktopOpenButton" class="ghost-button">打开桌面输入窗</button>
+          </div>
+          <p id="desktopStatusText" class="helper-text">
+            桌面模式启动后，可用全局热键从任意应用唤起输入法。
+          </p>
+        </section>
+
+        <section class="panel-section">
+          <h2>关键指标</h2>
+          <div class="metric-stack">
+            <div class="metric-card">
+              <span>已输入字数</span>
+              <strong id="charCount">0</strong>
+            </div>
+            <div class="metric-card">
+              <span>本次时长</span>
+              <strong id="sessionTime">00:00</strong>
+            </div>
+            <div class="metric-card">
+              <span>录入速度</span>
+              <strong id="inputSpeed">0 字/分</strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel-section">
+          <h2>产品判断</h2>
+          <ul class="insight-list">
+            <li>浏览器负责语音采集，Go 后端负责规则和持久化。</li>
+            <li>通过热词替换、语音命令、审校队列补足准确率。</li>
+            <li>极速 / 平衡 / 审校三档，让响应速度与纠错成本可调。</li>
+            <li>后端统一处理文本规则，后续更容易接第三方识别引擎。</li>
+          </ul>
+        </section>
+
+        <section class="panel-section">
+          <h2>适用场景</h2>
+          <ul class="insight-list">
+            <li>客服回复、会议纪要、长文本草拟</li>
+            <li>中文口述转写并快速微调</li>
+            <li>对输入速度敏感，但不希望先接入昂贵云服务</li>
+          </ul>
+        </section>
+      </aside>
+    </main>
+  </div>
+
+  <template id="hotwordTemplate">
+    <div class="hotword-item">
+      <input class="hotword-source" type="text" placeholder="口语说法">
+      <span class="arrow">→</span>
+      <input class="hotword-target" type="text" placeholder="替换成">
+      <button class="icon-button" type="button" aria-label="删除热词">删除</button>
+    </div>
+  </template>
+
+  <template id="queueItemTemplate">
+    <div class="queue-item">
+      <p class="queue-text"></p>
+      <div class="button-row compact">
+        <button class="approve-button">确认插入</button>
+        <button class="reject-button">忽略</button>
+      </div>
+    </div>
+  </template>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
